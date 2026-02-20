@@ -8,7 +8,7 @@ class Menu:
     def __init__(self, screen):
         self.screen = screen
         self.selected_option = 0
-        self.options = ["Mode Compétitif", "Jouer", "Scores", "Paramètres", "Quitter"]
+        self.options = ["Jouer", "Nouvelle partie", "Mode Compétitif", "Scores", "Paramètres", "Quitter"]
         self.font_title = pygame.font.Font(None, 72)
         self.font_option = pygame.font.Font(None, 48)
         self.font_small = pygame.font.Font(None, 32)
@@ -59,11 +59,11 @@ class Menu:
         
         # Options du menu avec couleurs vives
         y_offset = 350
-        option_colors = [ORANGE, YELLOW, PURPLE, RED]  # Couleurs différentes pour chaque option
+        option_colors = [ORANGE, YELLOW, PURPLE, RED, CYAN, GRAY]  # Couleurs pour chaque option
         
         for i, option in enumerate(self.options):
             if i == self.selected_option:
-                color = option_colors[i]
+                color = option_colors[i % len(option_colors)]
                 # Fond coloré pour l'option sélectionnée
                 bg_rect = pygame.Rect(SCREEN_WIDTH // 2 - 150, y_offset + i * 80 - 25, 300, 50)
                 pygame.draw.rect(self.screen, (color[0] // 4, color[1] // 4, color[2] // 4), bg_rect)
@@ -82,14 +82,4 @@ class Menu:
                     (text_rect.left - 10, text_rect.centery - 10),
                     (text_rect.left - 10, text_rect.centery + 10)
                 ])
-        
-        # Instructions
-        instructions = [
-            "Clavier: Flèches ↑↓ : Naviguer | Entrée/Espace : Sélectionner",
-            "Manette PS4: D-Pad ↑↓ : Naviguer | Bouton X : Sélectionner"
-        ]
-        y_inst = SCREEN_HEIGHT - 100
-        for i, inst in enumerate(instructions):
-            text = self.font_small.render(inst, True, GRAY)
-            self.screen.blit(text, (50, y_inst + i * 30))
 

@@ -54,7 +54,7 @@ class Background:
             r = int(GRADIENT_START[0] * (1 - ratio) + GRADIENT_END[0] * ratio)
             g = int(GRADIENT_START[1] * (1 - ratio) + GRADIENT_END[1] * ratio)
             b = int(GRADIENT_START[2] * (1 - ratio) + GRADIENT_END[2] * ratio)
-            pygame.draw.line(screen, (r, g, b), (0, y), (SCREEN_WIDTH, y))
+            pygame.draw.line(screen, (r, g, b), (0, y), (screen.get_width(), y))
         
         # Dessiner les nuages
         for cloud in self.clouds:

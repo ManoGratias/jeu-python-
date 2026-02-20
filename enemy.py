@@ -97,11 +97,17 @@ class Enemy:
             return False, False  # (collision, écrasé)
         
         if self.rect.colliderect(player.rect):
-            # Si le joueur tombe sur l'ennemi (écrasement)
-            if player.velocity_y > 0 and player.rect.bottom < self.rect.bottom + 10:
-                return True, True  # Écrasé
-            else:
-                return True, False  # Collision normale (perte de vie)
+            # Bonus actif : TOUCHER un ennemi volant = il est écrasé (facile!)
+            has_jump_bonus = getattr(player, 'jump_bonus_timer', 0) > 0
+            if has_jump_bonus and self.flying:
+                return True, True  # Écrasé en l'air - juste en touchant!
+            
+            # Écrasement normal : joueur tombe sur l'ennemi (sol ou volant)
+            if player.velocity_y > 0 and player.rect.bottom < self.rect.bottom + 15:
+                return True, True  # Écrasé par le dessus
+            
+            # Collision normale (perte de vie)
+            return True, False
         
         return False, False
     

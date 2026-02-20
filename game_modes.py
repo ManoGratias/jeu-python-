@@ -6,24 +6,35 @@ from config import *
 
 class GameModes:
     def __init__(self):
+        # Modes du menu Mode Compétitif (Jouer = Joueur vs Bot directement)
         self.available_modes = {
-            "1v1": {
-                "name": "Joueur vs Bot",
-                "description": "Affrontez un bot dans 5 ou 10 manches",
-                "players": 1,
-                "rounds_options": [5, 10]
-            },
-            "2v1": {
-                "name": "Deux joueurs vs Bot",
-                "description": "Coopérez avec un ami contre le bot",
-                "players": 2,
-                "rounds_options": [5, 10]
-            },
             "pvp": {
                 "name": "Joueur vs Joueur",
-                "description": "Affrontez-vous dans 10 manches",
+                "description": "Écran partagé - Affrontez-vous en 5 manches",
                 "players": 2,
-                "rounds_options": [10]
+                "rounds_options": [5]
+            },
+            "2v1": {
+                "name": "2 Joueurs vs Bot",
+                "description": "Même niveau - Coopérez contre le bot en 5 manches",
+                "players": 2,
+                "rounds_options": [5]
+            },
+            "course_combat": {
+                "name": "Course et Combat",
+                "description": "Choisir une course unique ou un combat (vs joueur ou bot)",
+                "players": 0,
+                "rounds_options": []
+            }
+        }
+        
+        # Mode Joueur vs Bot (utilisé par le menu "Jouer")
+        self.joueur_vs_bot_mode = {
+            "1v1": {
+                "name": "Joueur vs Bot",
+                "description": "Affrontez un bot dans 5 manches",
+                "players": 1,
+                "rounds_options": [5]
             }
         }
         
@@ -34,7 +45,13 @@ class GameModes:
     def select_mode(self, mode, rounds, difficulty="medium"):
         """Sélectionne un mode de jeu"""
         if mode in self.available_modes:
-            if rounds in self.available_modes[mode]["rounds_options"]:
+            mode_info = self.available_modes[mode]
+            if mode == "course_combat":
+                self.selected_mode = mode
+                self.selected_rounds = 1
+                self.bot_difficulty = difficulty
+                return True
+            if rounds in mode_info["rounds_options"]:
                 self.selected_mode = mode
                 self.selected_rounds = rounds
                 self.bot_difficulty = difficulty
@@ -77,12 +94,13 @@ class GameModes:
             desc_text = font_small.render(mode_info["description"], True, GRAY)
             screen.blit(desc_text, (150, y + 35))
             
-            # Options de manches
-            rounds_text = font_small.render(
-                f"Manches disponibles: {', '.join(map(str, mode_info['rounds_options']))}",
-                True, YELLOW
-            )
-            screen.blit(rounds_text, (150, y + 60))
+            # Options de manches (sauf pour Course et Combat)
+            if mode_info['rounds_options']:
+                rounds_text = font_small.render(
+                    f"Manches disponibles: {', '.join(map(str, mode_info['rounds_options']))}",
+                    True, YELLOW
+                )
+                screen.blit(rounds_text, (150, y + 60))
         
         # Instructions
         instruction = font_small.render(

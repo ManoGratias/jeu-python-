@@ -14,6 +14,7 @@ class Level:
         self.enemies = []
         self.collectibles = []
         self.boss = None  # Boss pour le niveau final
+        self.checkpoints = []  # Liste de (x, y) pour les points de respawn
         self.end_x = SCREEN_WIDTH - 100  # Position de fin du niveau
         self.level_id = level_id
         self.level_type = "parkour"  # parkour ou boss
@@ -34,6 +35,10 @@ class Level:
             elif level_id == 1:
                 self.create_parkour_level_2()
             elif level_id == 2:
+                self.create_parkour_level_3()
+            elif level_id == 3:
+                self.create_parkour_level_4()
+            elif level_id == 4:
                 self.create_boss_level()
             else:
                 self.create_default_level()
@@ -63,45 +68,20 @@ class Level:
         for x, y, width in platform_positions:
             self.platforms.append(Platform(x, y, width))
         
-        # BEAUCOUP PLUS D'ENNEMIS partout (difficulté compétitive) + ENNEMIS VOLANTS
+        # NIVEAU 1 TRÈS FACILE - Peu d'ennemis pour bien débuter
         self.enemies = [
-            # Section 1 - Ennemis au sol
-            Enemy(180, 650 - ENEMY_HEIGHT, 150, 270),
+            # Section 1 - Quelques ennemis au sol
             Enemy(500, 450 - ENEMY_HEIGHT, 480, 600),
-            Enemy(830, 550 - ENEMY_HEIGHT, 800, 920),
             Enemy(1000, 450 - ENEMY_HEIGHT, 970, 1090),
-            Enemy(1200, 350 - ENEMY_HEIGHT, 1120, 1270),
-            # Section 1 - Ennemis volants en l'air
-            Enemy(300, 400, 200, 500, flying=True),
+            # Section 1 - Un seul ennemi volant
             Enemy(600, 300, 500, 700, flying=True),
-            Enemy(900, 500, 800, 1000, flying=True),
-            Enemy(1100, 250, 1000, 1200, flying=True),
-            # Section 2 - Ennemis au sol
-            Enemy(1330, 650 - ENEMY_HEIGHT, 1300, 1420),
-            Enemy(1500, 550 - ENEMY_HEIGHT, 1470, 1570),
+            # Section 2 - Quelques ennemis
             Enemy(1660, 450 - ENEMY_HEIGHT, 1630, 1750),
-            Enemy(1830, 350 - ENEMY_HEIGHT, 1800, 1900),
-            Enemy(1980, 550 - ENEMY_HEIGHT, 1950, 2070),
             Enemy(2150, 450 - ENEMY_HEIGHT, 2120, 2220),
-            Enemy(2300, 350 - ENEMY_HEIGHT, 2270, 2420),
-            # Section 2 - Ennemis volants
-            Enemy(1400, 400, 1300, 1500, flying=True),
             Enemy(1700, 300, 1600, 1800, flying=True),
-            Enemy(2000, 500, 1900, 2100, flying=True),
-            Enemy(2250, 250, 2150, 2350, flying=True),
-            # Section 3 - Ennemis au sol
-            Enemy(2480, 650 - ENEMY_HEIGHT, 2450, 2570),
-            Enemy(2650, 550 - ENEMY_HEIGHT, 2620, 2720),
+            # Section 3 - Quelques ennemis
             Enemy(2810, 450 - ENEMY_HEIGHT, 2780, 2900),
-            Enemy(2980, 350 - ENEMY_HEIGHT, 2950, 3050),
-            Enemy(3130, 550 - ENEMY_HEIGHT, 3100, 3220),
             Enemy(3300, 450 - ENEMY_HEIGHT, 3270, 3370),
-            Enemy(3450, 350 - ENEMY_HEIGHT, 3420, 3570),
-            # Section 3 - Ennemis volants
-            Enemy(2550, 400, 2450, 2650, flying=True),
-            Enemy(2800, 300, 2700, 2900, flying=True),
-            Enemy(3100, 500, 3000, 3200, flying=True),
-            Enemy(3350, 250, 3250, 3450, flying=True),
         ]
         
         # Collectibles stratégiquement placés
@@ -129,37 +109,65 @@ class Level:
             Collectible(3440, 350 - ENEMY_HEIGHT - 40),
         ]
         
+        # Checkpoints - points de respawn (environ tous les 1/3 du niveau)
+        self.checkpoints = [
+            (50, 100),      # Départ
+            (800, 350),     # Après 1ère section
+            (1800, 350),    # Milieu
+            (2800, 350),    # Avant la fin
+        ]
         self.end_x = extended_width - 50
     
     def create_boss_level(self):
-        """Niveau Boss Final - Combat contre le grand robot"""
+        """Niveau Boss Final - Le boss reste au fond et tire des ennemis au sol et en l'air"""
         self.level_type = "boss"
-        # Sol plat pour la course contre le boss
+        extended_width = SCREEN_WIDTH * 2  # Niveau plus long
+        # IMPORTANT: Ne pas initialiser boss_start_time ici
+        # Le timer sera initialisé seulement quand l'animation "Manche X" est terminée
+        self.boss_start_time = None  # Sera initialisé quand le jeu commence vraiment
         self.platforms = [
-            Platform(0, SCREEN_HEIGHT - 50, SCREEN_WIDTH),
+            Platform(0, SCREEN_HEIGHT - 50, extended_width),
         ]
+        # Plateformes pour le parcours (obstacles) + plateformes en hauteur pour tuer les ennemis volants
+        platform_positions = [
+            # Plateformes basses (parcours principal)
+            (200, SCREEN_HEIGHT - 180, 70), (450, SCREEN_HEIGHT - 220, 60),
+            (700, SCREEN_HEIGHT - 160, 80), (950, SCREEN_HEIGHT - 200, 65),
+            (1200, SCREEN_HEIGHT - 180, 70), (1500, SCREEN_HEIGHT - 240, 55),
+            (1800, SCREEN_HEIGHT - 170, 75), (2100, SCREEN_HEIGHT - 210, 60),
+            (2400, SCREEN_HEIGHT - 190, 70),
+            # Plateformes moyennes (pour sauter vers les ennemis volants)
+            (300, SCREEN_HEIGHT - 350, 60), (600, SCREEN_HEIGHT - 380, 55),
+            (900, SCREEN_HEIGHT - 320, 65), (1100, SCREEN_HEIGHT - 360, 60),
+            (1400, SCREEN_HEIGHT - 340, 70), (1700, SCREEN_HEIGHT - 380, 55),
+            (2000, SCREEN_HEIGHT - 350, 65), (2300, SCREEN_HEIGHT - 370, 60),
+            # Plateformes hautes (pour atteindre les ennemis volants en haut)
+            (400, SCREEN_HEIGHT - 500, 50), (750, SCREEN_HEIGHT - 520, 55),
+            (1050, SCREEN_HEIGHT - 480, 60), (1350, SCREEN_HEIGHT - 510, 50),
+            (1650, SCREEN_HEIGHT - 490, 55), (1950, SCREEN_HEIGHT - 520, 60),
+            (2250, SCREEN_HEIGHT - 500, 55),
+            # Plateformes très hautes (pour les ennemis volants les plus hauts)
+            (500, SCREEN_HEIGHT - 650, 45), (850, SCREEN_HEIGHT - 680, 50),
+            (1250, SCREEN_HEIGHT - 640, 55), (1600, SCREEN_HEIGHT - 670, 50),
+            (2000, SCREEN_HEIGHT - 650, 45), (2350, SCREEN_HEIGHT - 680, 50),
+        ]
+        for x, y, w in platform_positions:
+            self.platforms.append(Platform(x, y, w))
         
-        # Quelques plateformes pour le combat
-        self.platforms.extend([
-            Platform(300, SCREEN_HEIGHT - 150, 80),
-            Platform(600, SCREEN_HEIGHT - 200, 80),
-            Platform(900, SCREEN_HEIGHT - 150, 80),
-        ])
+        # Boss fixe en haut à droite - 3 phases : sol (10), air (10), les deux
+        self.boss = Boss(extended_width - 120, 60)
         
-        # Le grand boss robot (position de départ à droite)
-        self.boss = Boss(SCREEN_WIDTH - 150, SCREEN_HEIGHT - 150)
-        
-        # Pas d'ennemis normaux, juste le boss
+        # Pas d'ennemis initiaux - le boss les lance selon les phases
         self.enemies = []
         
-        # Quelques collectibles pour le score
-        self.collectibles = [
-            Collectible(400, SCREEN_HEIGHT - 200),
-            Collectible(700, SCREEN_HEIGHT - 250),
-            Collectible(1000, SCREEN_HEIGHT - 200),
-        ]
-        
-        self.end_x = SCREEN_WIDTH - 50
+        # Pas d'étoiles jaunes en manche 5 - étoiles rouges (phase 1 et 3) et bleues (phase 2 et 3)
+        # Les étoiles seront ajoutées dynamiquement selon la phase du boss
+        self.collectibles = []
+        self.red_stars_added = False  # Étoiles rouges ajoutées en phase 1
+        self.blue_stars_added = False  # Étoiles bleues ajoutées en phase 2
+        self.bounds_x = (0, extended_width)  # Limites pour ne pas tomber sur les côtés
+        self.checkpoints = []  # Pas de checkpoints en manche 5
+        self.end_x = extended_width - 50
     
     def create_parkour_level_2(self):
         """Niveau Parkour 2 - Défi de précision (DIFFICULTÉ AUGMENTÉE et PLUS LONG)"""
@@ -186,53 +194,36 @@ class Level:
         for x, y, width in platform_positions:
             self.platforms.append(Platform(x, y, width))
         
-        # BEAUCOUP PLUS D'ENNEMIS partout (difficulté compétitive maximale) + ENNEMIS VOLANTS
+        # NIVEAU 2 MOINS FACILE - Plus d'ennemis que niveau 1, difficulté progressive
         self.enemies = [
             # Section 1 - Ennemis au sol
-            Enemy(120, 700 - ENEMY_HEIGHT, 100, 150),
             Enemy(240, 600 - ENEMY_HEIGHT, 220, 270),
-            Enemy(370, 500 - ENEMY_HEIGHT, 350, 400),
             Enemy(500, 400 - ENEMY_HEIGHT, 480, 530),
-            Enemy(630, 500 - ENEMY_HEIGHT, 610, 660),
             Enemy(760, 400 - ENEMY_HEIGHT, 740, 790),
             Enemy(890, 300 - ENEMY_HEIGHT, 870, 920),
             Enemy(1020, 400 - ENEMY_HEIGHT, 1000, 1050),
-            Enemy(1160, 500 - ENEMY_HEIGHT, 1130, 1180),
             # Section 1 - Ennemis volants
-            Enemy(200, 450, 100, 300, flying=True),
             Enemy(450, 350, 350, 550, flying=True),
             Enemy(700, 550, 600, 800, flying=True),
             Enemy(950, 250, 850, 1050, flying=True),
             # Section 2 - Ennemis au sol
-            Enemy(1330, 700 - ENEMY_HEIGHT, 1300, 1365),
             Enemy(1450, 600 - ENEMY_HEIGHT, 1420, 1470),
-            Enemy(1580, 500 - ENEMY_HEIGHT, 1550, 1600),
             Enemy(1710, 400 - ENEMY_HEIGHT, 1680, 1730),
-            Enemy(1840, 500 - ENEMY_HEIGHT, 1810, 1855),
             Enemy(1970, 400 - ENEMY_HEIGHT, 1940, 1990),
             Enemy(2100, 300 - ENEMY_HEIGHT, 2070, 2115),
             Enemy(2230, 400 - ENEMY_HEIGHT, 2200, 2250),
-            Enemy(2360, 500 - ENEMY_HEIGHT, 2330, 2375),
             # Section 2 - Ennemis volants
-            Enemy(1400, 450, 1300, 1500, flying=True),
             Enemy(1650, 350, 1550, 1750, flying=True),
             Enemy(1900, 550, 1800, 2000, flying=True),
-            Enemy(2150, 250, 2050, 2250, flying=True),
             # Section 3 - Ennemis au sol
-            Enemy(2490, 700 - ENEMY_HEIGHT, 2460, 2510),
             Enemy(2620, 600 - ENEMY_HEIGHT, 2590, 2635),
-            Enemy(2750, 500 - ENEMY_HEIGHT, 2720, 2770),
             Enemy(2880, 400 - ENEMY_HEIGHT, 2850, 2895),
-            Enemy(3010, 500 - ENEMY_HEIGHT, 2980, 3030),
             Enemy(3140, 400 - ENEMY_HEIGHT, 3110, 3155),
             Enemy(3270, 300 - ENEMY_HEIGHT, 3240, 3290),
             Enemy(3400, 400 - ENEMY_HEIGHT, 3370, 3415),
-            Enemy(3530, 500 - ENEMY_HEIGHT, 3500, 3550),
             # Section 3 - Ennemis volants
-            Enemy(2600, 450, 2500, 2700, flying=True),
             Enemy(2850, 350, 2750, 2950, flying=True),
             Enemy(3100, 550, 3000, 3200, flying=True),
-            Enemy(3350, 250, 3250, 3450, flying=True),
         ]
         
         # Collectibles sur chaque plateforme
@@ -266,6 +257,162 @@ class Level:
             Collectible(3525, 500 - ENEMY_HEIGHT - 40),
         ]
         
+        # Checkpoints niveau 2
+        self.checkpoints = [
+            (50, 100), (600, 500), (1500, 500), (2500, 500), (3300, 300)
+        ]
+        self.end_x = extended_width - 50
+    
+    def create_parkour_level_3(self):
+        """Niveau Parkour 3 - DIFFICILE (plus dur que niveau 2)"""
+        self.level_type = "parkour"
+        extended_width = SCREEN_WIDTH * 2.5
+        self.platforms = [
+            Platform(0, SCREEN_HEIGHT - 50, extended_width),
+        ]
+        platform_positions = [
+            (80, 710, 45), (200, 610, 40), (330, 510, 45), (460, 410, 40),
+            (590, 510, 45), (720, 410, 40), (850, 310, 45), (980, 410, 40), (1110, 510, 45),
+            (1280, 710, 40), (1400, 610, 45), (1530, 510, 40), (1660, 410, 45),
+            (1790, 510, 40), (1920, 410, 40), (2050, 310, 45), (2180, 410, 40), (2310, 510, 45),
+            (2440, 710, 45), (2570, 610, 40), (2700, 510, 45), (2830, 410, 40),
+            (2960, 510, 45), (3090, 410, 40), (3220, 310, 45), (3350, 410, 40), (3480, 510, 45),
+        ]
+        for x, y, width in platform_positions:
+            self.platforms.append(Platform(x, y, width))
+        
+        # NIVEAU 3 DIFFICILE - Beaucoup plus d'ennemis que niveau 2
+        self.enemies = [
+            Enemy(120, 610 - ENEMY_HEIGHT, 80, 160),
+            Enemy(260, 510 - ENEMY_HEIGHT, 200, 320),
+            Enemy(400, 410 - ENEMY_HEIGHT, 330, 470),
+            Enemy(540, 510 - ENEMY_HEIGHT, 460, 620),
+            Enemy(680, 410 - ENEMY_HEIGHT, 590, 770),
+            Enemy(820, 310 - ENEMY_HEIGHT, 720, 920),
+            Enemy(960, 410 - ENEMY_HEIGHT, 850, 1070),
+            Enemy(1100, 510 - ENEMY_HEIGHT, 980, 1220),
+            Enemy(250, 350, 150, 350, flying=True),
+            Enemy(500, 250, 400, 600, flying=True),
+            Enemy(750, 450, 650, 850, flying=True),
+            Enemy(1000, 200, 900, 1100, flying=True),
+            Enemy(1350, 610 - ENEMY_HEIGHT, 1280, 1420),
+            Enemy(1490, 510 - ENEMY_HEIGHT, 1400, 1580),
+            Enemy(1630, 410 - ENEMY_HEIGHT, 1530, 1730),
+            Enemy(1770, 510 - ENEMY_HEIGHT, 1660, 1880),
+            Enemy(1910, 410 - ENEMY_HEIGHT, 1790, 2030),
+            Enemy(2050, 310 - ENEMY_HEIGHT, 1920, 2180),
+            Enemy(2190, 410 - ENEMY_HEIGHT, 2050, 2330),
+            Enemy(1400, 350, 1280, 1520, flying=True),
+            Enemy(1700, 250, 1600, 1800, flying=True),
+            Enemy(2000, 450, 1900, 2100, flying=True),
+            Enemy(2500, 610 - ENEMY_HEIGHT, 2440, 2560),
+            Enemy(2640, 510 - ENEMY_HEIGHT, 2570, 2710),
+            Enemy(2780, 410 - ENEMY_HEIGHT, 2700, 2860),
+            Enemy(2920, 510 - ENEMY_HEIGHT, 2830, 3010),
+            Enemy(3060, 410 - ENEMY_HEIGHT, 2960, 3160),
+            Enemy(3200, 310 - ENEMY_HEIGHT, 3090, 3310),
+            Enemy(2600, 350, 2500, 2700, flying=True),
+            Enemy(2900, 250, 2800, 3000, flying=True),
+            Enemy(3200, 450, 3100, 3300, flying=True),
+        ]
+        
+        self.collectibles = [
+            Collectible(105, 710 - ENEMY_HEIGHT - 40), Collectible(225, 610 - ENEMY_HEIGHT - 40),
+            Collectible(355, 510 - ENEMY_HEIGHT - 40), Collectible(485, 410 - ENEMY_HEIGHT - 40),
+            Collectible(615, 510 - ENEMY_HEIGHT - 40), Collectible(745, 410 - ENEMY_HEIGHT - 40),
+            Collectible(875, 310 - ENEMY_HEIGHT - 40), Collectible(1005, 410 - ENEMY_HEIGHT - 40),
+            Collectible(1135, 510 - ENEMY_HEIGHT - 40), Collectible(1305, 710 - ENEMY_HEIGHT - 40),
+            Collectible(1425, 610 - ENEMY_HEIGHT - 40), Collectible(1555, 510 - ENEMY_HEIGHT - 40),
+            Collectible(1685, 410 - ENEMY_HEIGHT - 40), Collectible(1815, 510 - ENEMY_HEIGHT - 40),
+            Collectible(1945, 410 - ENEMY_HEIGHT - 40), Collectible(2075, 310 - ENEMY_HEIGHT - 40),
+            Collectible(2205, 410 - ENEMY_HEIGHT - 40), Collectible(2335, 510 - ENEMY_HEIGHT - 40),
+            Collectible(2465, 710 - ENEMY_HEIGHT - 40), Collectible(2595, 610 - ENEMY_HEIGHT - 40),
+            Collectible(2725, 510 - ENEMY_HEIGHT - 40), Collectible(2855, 410 - ENEMY_HEIGHT - 40),
+            Collectible(2985, 510 - ENEMY_HEIGHT - 40), Collectible(3115, 410 - ENEMY_HEIGHT - 40),
+            Collectible(3245, 310 - ENEMY_HEIGHT - 40), Collectible(3375, 410 - ENEMY_HEIGHT - 40),
+        ]
+        self.checkpoints = [(50, 100), (800, 410), (1700, 410), (2600, 510), (3400, 410)]
+        self.end_x = extended_width - 50
+    
+    def create_parkour_level_4(self):
+        """Niveau Parkour 4 - TRÈS DIFFICILE (plus dur que niveau 3)"""
+        self.level_type = "parkour"
+        extended_width = SCREEN_WIDTH * 2.5
+        self.platforms = [
+            Platform(0, SCREEN_HEIGHT - 50, extended_width),
+        ]
+        platform_positions = [
+            (70, 720, 40), (190, 620, 38), (310, 520, 40), (430, 420, 38),
+            (550, 520, 40), (670, 420, 38), (790, 320, 40), (910, 420, 38), (1030, 520, 40), (1150, 620, 38),
+            (1270, 720, 38), (1390, 620, 40), (1510, 520, 38), (1630, 420, 40),
+            (1750, 520, 38), (1870, 420, 40), (1990, 320, 38), (2110, 420, 40), (2230, 520, 38), (2350, 620, 40),
+            (2470, 720, 40), (2590, 620, 38), (2710, 520, 40), (2830, 420, 38),
+            (2950, 520, 40), (3070, 420, 38), (3190, 320, 40), (3310, 420, 38), (3430, 520, 40), (3550, 620, 40),
+        ]
+        for x, y, width in platform_positions:
+            self.platforms.append(Platform(x, y, width))
+        
+        # NIVEAU 4 TRÈS DIFFICILE - Maximum d'ennemis, plateformes petites
+        self.enemies = [
+            Enemy(100, 620 - ENEMY_HEIGHT, 70, 130),
+            Enemy(230, 520 - ENEMY_HEIGHT, 190, 270),
+            Enemy(360, 420 - ENEMY_HEIGHT, 310, 410),
+            Enemy(490, 520 - ENEMY_HEIGHT, 430, 550),
+            Enemy(620, 420 - ENEMY_HEIGHT, 550, 690),
+            Enemy(750, 320 - ENEMY_HEIGHT, 670, 830),
+            Enemy(880, 420 - ENEMY_HEIGHT, 790, 970),
+            Enemy(1010, 520 - ENEMY_HEIGHT, 910, 1110),
+            Enemy(1140, 620 - ENEMY_HEIGHT, 1030, 1250),
+            Enemy(200, 300, 100, 300, flying=True),
+            Enemy(450, 200, 350, 550, flying=True),
+            Enemy(700, 400, 600, 800, flying=True),
+            Enemy(950, 150, 850, 1050, flying=True),
+            Enemy(1200, 500, 1100, 1300, flying=True),
+            Enemy(1320, 620 - ENEMY_HEIGHT, 1270, 1370),
+            Enemy(1440, 520 - ENEMY_HEIGHT, 1390, 1490),
+            Enemy(1560, 420 - ENEMY_HEIGHT, 1510, 1610),
+            Enemy(1680, 520 - ENEMY_HEIGHT, 1630, 1730),
+            Enemy(1800, 420 - ENEMY_HEIGHT, 1750, 1850),
+            Enemy(1920, 320 - ENEMY_HEIGHT, 1870, 1970),
+            Enemy(2040, 420 - ENEMY_HEIGHT, 1990, 2090),
+            Enemy(2160, 520 - ENEMY_HEIGHT, 2110, 2210),
+            Enemy(2280, 620 - ENEMY_HEIGHT, 2230, 2330),
+            Enemy(1380, 320, 1270, 1490, flying=True),
+            Enemy(1680, 220, 1570, 1790, flying=True),
+            Enemy(1980, 420, 1870, 2090, flying=True),
+            Enemy(2280, 180, 2170, 2390, flying=True),
+            Enemy(2520, 620 - ENEMY_HEIGHT, 2470, 2570),
+            Enemy(2640, 520 - ENEMY_HEIGHT, 2590, 2690),
+            Enemy(2760, 420 - ENEMY_HEIGHT, 2710, 2810),
+            Enemy(2880, 520 - ENEMY_HEIGHT, 2830, 2930),
+            Enemy(3000, 420 - ENEMY_HEIGHT, 2950, 3050),
+            Enemy(3120, 320 - ENEMY_HEIGHT, 3070, 3170),
+            Enemy(3240, 420 - ENEMY_HEIGHT, 3190, 3290),
+            Enemy(3360, 520 - ENEMY_HEIGHT, 3310, 3410),
+            Enemy(2550, 300, 2470, 2630, flying=True),
+            Enemy(2850, 200, 2750, 2950, flying=True),
+            Enemy(3150, 400, 3050, 3250, flying=True),
+            Enemy(3450, 250, 3350, 3550, flying=True),
+        ]
+        
+        self.collectibles = [
+            Collectible(95, 720 - ENEMY_HEIGHT - 40), Collectible(215, 620 - ENEMY_HEIGHT - 40),
+            Collectible(335, 520 - ENEMY_HEIGHT - 40), Collectible(455, 420 - ENEMY_HEIGHT - 40),
+            Collectible(575, 520 - ENEMY_HEIGHT - 40), Collectible(695, 420 - ENEMY_HEIGHT - 40),
+            Collectible(815, 320 - ENEMY_HEIGHT - 40), Collectible(935, 420 - ENEMY_HEIGHT - 40),
+            Collectible(1055, 520 - ENEMY_HEIGHT - 40), Collectible(1175, 620 - ENEMY_HEIGHT - 40),
+            Collectible(1295, 720 - ENEMY_HEIGHT - 40), Collectible(1415, 620 - ENEMY_HEIGHT - 40),
+            Collectible(1535, 520 - ENEMY_HEIGHT - 40), Collectible(1655, 420 - ENEMY_HEIGHT - 40),
+            Collectible(1775, 520 - ENEMY_HEIGHT - 40), Collectible(1895, 420 - ENEMY_HEIGHT - 40),
+            Collectible(2015, 320 - ENEMY_HEIGHT - 40), Collectible(2135, 420 - ENEMY_HEIGHT - 40),
+            Collectible(2255, 520 - ENEMY_HEIGHT - 40), Collectible(2375, 620 - ENEMY_HEIGHT - 40),
+            Collectible(2495, 720 - ENEMY_HEIGHT - 40), Collectible(2615, 620 - ENEMY_HEIGHT - 40),
+            Collectible(2735, 520 - ENEMY_HEIGHT - 40), Collectible(2855, 420 - ENEMY_HEIGHT - 40),
+            Collectible(2975, 520 - ENEMY_HEIGHT - 40), Collectible(3095, 420 - ENEMY_HEIGHT - 40),
+            Collectible(3215, 320 - ENEMY_HEIGHT - 40), Collectible(3335, 420 - ENEMY_HEIGHT - 40),
+            Collectible(3455, 520 - ENEMY_HEIGHT - 40),
+        ]
+        self.checkpoints = [(50, 100), (900, 420), (1800, 420), (2700, 520), (3500, 420)]
         self.end_x = extended_width - 50
     
     def create_default_level(self):
@@ -327,7 +474,110 @@ class Level:
         
         # Mettre à jour le boss si présent
         if self.boss:
-            self.boss.update(self.platforms, player)
+            self.boss.update(self.platforms, player, self)
+            
+            # Ajouter les étoiles selon les phases du boss
+            if self.level_type == "boss" and self.boss:
+                current_phase = self.boss.phase
+                
+                # Phase 1 : seulement étoiles rouges
+                if current_phase == 1:
+                    if not self.red_stars_added:
+                        self.red_stars_added = True
+                        self.blue_stars_added = False  # Réinitialiser pour la phase suivante
+                        # Retirer toutes les étoiles bleues si présentes
+                        self.collectibles = [c for c in self.collectibles if c.collect_type != "kill_flying"]
+                        # Ajouter les étoiles rouges
+                        red_positions = [
+                            # Sur plateformes basses
+                            (250, SCREEN_HEIGHT - 230), (350, SCREEN_HEIGHT - 230), (500, SCREEN_HEIGHT - 270),
+                            (600, SCREEN_HEIGHT - 270), (850, SCREEN_HEIGHT - 210), (950, SCREEN_HEIGHT - 210),
+                            (1150, SCREEN_HEIGHT - 230), (1250, SCREEN_HEIGHT - 230), (1550, SCREEN_HEIGHT - 290),
+                            (1650, SCREEN_HEIGHT - 290), (1950, SCREEN_HEIGHT - 260), (2050, SCREEN_HEIGHT - 260),
+                            (2350, SCREEN_HEIGHT - 240),
+                            # Sur plateformes moyennes
+                            (300, SCREEN_HEIGHT - 380), (600, SCREEN_HEIGHT - 410), (900, SCREEN_HEIGHT - 350),
+                            (1100, SCREEN_HEIGHT - 390), (1400, SCREEN_HEIGHT - 370), (1700, SCREEN_HEIGHT - 410),
+                            (2000, SCREEN_HEIGHT - 380), (2300, SCREEN_HEIGHT - 400),
+                        ]
+                        for px, py in red_positions:
+                            self.collectibles.append(Collectible(px, py, collect_type="kill_ground"))
+                
+                # Phase 2 : seulement étoiles bleues
+                elif current_phase == 2:
+                    if not self.blue_stars_added:
+                        self.blue_stars_added = True
+                        self.red_stars_added = False  # Réinitialiser pour la phase suivante
+                        # Retirer toutes les étoiles rouges de la phase 1
+                        self.collectibles = [c for c in self.collectibles if c.collect_type != "kill_ground"]
+                        # Ajouter les étoiles bleues
+                        blue_positions = [
+                            # Sur plateformes hautes
+                            (400, SCREEN_HEIGHT - 530), (500, SCREEN_HEIGHT - 530), (750, SCREEN_HEIGHT - 550),
+                            (850, SCREEN_HEIGHT - 550), (1050, SCREEN_HEIGHT - 510), (1150, SCREEN_HEIGHT - 510),
+                            (1350, SCREEN_HEIGHT - 540), (1450, SCREEN_HEIGHT - 540), (1650, SCREEN_HEIGHT - 520),
+                            (1750, SCREEN_HEIGHT - 520), (1950, SCREEN_HEIGHT - 550), (2050, SCREEN_HEIGHT - 550),
+                            (2250, SCREEN_HEIGHT - 530), (2350, SCREEN_HEIGHT - 530),
+                            # Sur plateformes très hautes
+                            (500, SCREEN_HEIGHT - 680), (600, SCREEN_HEIGHT - 680), (850, SCREEN_HEIGHT - 710),
+                            (950, SCREEN_HEIGHT - 710), (1250, SCREEN_HEIGHT - 670), (1350, SCREEN_HEIGHT - 670),
+                            (1600, SCREEN_HEIGHT - 700), (1700, SCREEN_HEIGHT - 700), (2000, SCREEN_HEIGHT - 680),
+                            (2100, SCREEN_HEIGHT - 680), (2350, SCREEN_HEIGHT - 710), (2450, SCREEN_HEIGHT - 710),
+                            # Sur plateformes moyennes aussi
+                            (350, SCREEN_HEIGHT - 400), (650, SCREEN_HEIGHT - 420), (950, SCREEN_HEIGHT - 360),
+                            (1150, SCREEN_HEIGHT - 400), (1450, SCREEN_HEIGHT - 380), (1750, SCREEN_HEIGHT - 420),
+                            (2050, SCREEN_HEIGHT - 390),
+                        ]
+                        for px, py in blue_positions:
+                            self.collectibles.append(Collectible(px, py, collect_type="kill_flying"))
+                
+                # Phase 3 : les deux types d'étoiles (rouges + bleues)
+                elif current_phase == 3:
+                    # Réinitialiser les flags pour réajouter les étoiles
+                    if not self.red_stars_added or not self.blue_stars_added:
+                        # Retirer toutes les étoiles existantes
+                        self.collectibles = [c for c in self.collectibles if c.collect_type not in ["kill_ground", "kill_flying"]]
+                        self.red_stars_added = False
+                        self.blue_stars_added = False
+                    
+                    if not self.red_stars_added:
+                        self.red_stars_added = True
+                        red_positions = [
+                            # Sur plateformes basses
+                            (250, SCREEN_HEIGHT - 230), (350, SCREEN_HEIGHT - 230), (500, SCREEN_HEIGHT - 270),
+                            (600, SCREEN_HEIGHT - 270), (850, SCREEN_HEIGHT - 210), (950, SCREEN_HEIGHT - 210),
+                            (1150, SCREEN_HEIGHT - 230), (1250, SCREEN_HEIGHT - 230), (1550, SCREEN_HEIGHT - 290),
+                            (1650, SCREEN_HEIGHT - 290), (1950, SCREEN_HEIGHT - 260), (2050, SCREEN_HEIGHT - 260),
+                            (2350, SCREEN_HEIGHT - 240),
+                            # Sur plateformes moyennes
+                            (300, SCREEN_HEIGHT - 380), (600, SCREEN_HEIGHT - 410), (900, SCREEN_HEIGHT - 350),
+                            (1100, SCREEN_HEIGHT - 390), (1400, SCREEN_HEIGHT - 370), (1700, SCREEN_HEIGHT - 410),
+                            (2000, SCREEN_HEIGHT - 380), (2300, SCREEN_HEIGHT - 400),
+                        ]
+                        for px, py in red_positions:
+                            self.collectibles.append(Collectible(px, py, collect_type="kill_ground"))
+                    
+                    if not self.blue_stars_added:
+                        self.blue_stars_added = True
+                        blue_positions = [
+                            # Sur plateformes hautes
+                            (400, SCREEN_HEIGHT - 530), (500, SCREEN_HEIGHT - 530), (750, SCREEN_HEIGHT - 550),
+                            (850, SCREEN_HEIGHT - 550), (1050, SCREEN_HEIGHT - 510), (1150, SCREEN_HEIGHT - 510),
+                            (1350, SCREEN_HEIGHT - 540), (1450, SCREEN_HEIGHT - 540), (1650, SCREEN_HEIGHT - 520),
+                            (1750, SCREEN_HEIGHT - 520), (1950, SCREEN_HEIGHT - 550), (2050, SCREEN_HEIGHT - 550),
+                            (2250, SCREEN_HEIGHT - 530), (2350, SCREEN_HEIGHT - 530),
+                            # Sur plateformes très hautes
+                            (500, SCREEN_HEIGHT - 680), (600, SCREEN_HEIGHT - 680), (850, SCREEN_HEIGHT - 710),
+                            (950, SCREEN_HEIGHT - 710), (1250, SCREEN_HEIGHT - 670), (1350, SCREEN_HEIGHT - 670),
+                            (1600, SCREEN_HEIGHT - 700), (1700, SCREEN_HEIGHT - 700), (2000, SCREEN_HEIGHT - 680),
+                            (2100, SCREEN_HEIGHT - 680), (2350, SCREEN_HEIGHT - 710), (2450, SCREEN_HEIGHT - 710),
+                            # Sur plateformes moyennes aussi
+                            (350, SCREEN_HEIGHT - 400), (650, SCREEN_HEIGHT - 420), (950, SCREEN_HEIGHT - 360),
+                            (1150, SCREEN_HEIGHT - 400), (1450, SCREEN_HEIGHT - 380), (1750, SCREEN_HEIGHT - 420),
+                            (2050, SCREEN_HEIGHT - 390),
+                        ]
+                        for px, py in blue_positions:
+                            self.collectibles.append(Collectible(px, py, collect_type="kill_flying"))
         
         # Mettre à jour les collectibles
         for collectible in self.collectibles:
@@ -335,82 +585,132 @@ class Level:
     
     def draw(self, screen, camera_x=0):
         """Dessine tous les éléments du niveau avec décalage de caméra"""
+        view_w = screen.get_width()
         # Dessiner les plateformes avec décalage de caméra
         for platform in self.platforms:
-            # Vérifier si la plateforme est visible à l'écran
-            if platform.rect.right - camera_x > 0 and platform.rect.left - camera_x < SCREEN_WIDTH:
+            if platform.rect.right - camera_x > 0 and platform.rect.left - camera_x < view_w:
                 # Sauvegarder la position originale
                 old_x = platform.rect.x
                 platform.rect.x -= camera_x
                 platform.draw(screen)
                 platform.rect.x = old_x  # Restaurer
         
-        # Dessiner les collectibles avec décalage de caméra
+        # Dessiner les collectibles avec décalage de caméra (ou animation de collecte)
         for collectible in self.collectibles:
-            if collectible.rect.right - camera_x > 0 and collectible.rect.left - camera_x < SCREEN_WIDTH:
+            in_view = collectible.rect.right - camera_x > 0 and collectible.rect.left - camera_x < view_w
+            has_anim = collectible.collected and collectible.collect_particles
+            if in_view or has_anim:
                 old_x = collectible.rect.x
                 collectible.rect.x -= camera_x
-                collectible.draw(screen)
+                collectible.draw(screen, camera_x)
                 collectible.rect.x = old_x
         
         # Dessiner les ennemis avec décalage de caméra
         for enemy in self.enemies:
-            if enemy.rect.right - camera_x > 0 and enemy.rect.left - camera_x < SCREEN_WIDTH:
+            if enemy.rect.right - camera_x > 0 and enemy.rect.left - camera_x < view_w:
                 old_x = enemy.rect.x
                 enemy.rect.x -= camera_x
                 enemy.draw(screen)
                 enemy.rect.x = old_x
         
-        # Dessiner le boss si présent avec décalage de caméra
-        if self.boss:
-            if self.boss.rect.right - camera_x > 0 and self.boss.rect.left - camera_x < SCREEN_WIDTH:
-                old_x = self.boss.rect.x
-                self.boss.rect.x -= camera_x
-                self.boss.draw(screen)
-                self.boss.rect.x = old_x
+        # Dessiner le boss si présent - TOUJOURS en haut à droite de l'écran (fixe)
+        if self.boss and self.level_type == "boss":
+            # Le boss reste en haut à droite, visible tout le temps
+            old_x, old_y = self.boss.rect.x, self.boss.rect.y
+            self.boss.rect.x = view_w - 120
+            self.boss.rect.y = 60
+            self.boss.draw(screen)
+            self.boss.rect.x, self.boss.rect.y = old_x, old_y
         
-        # Dessiner la zone de fin (drapeau style pixel art) avec décalage de caméra
-        flag_pole_x = self.end_x - camera_x
-        flag_pole_y = SCREEN_HEIGHT - 150
-        flag_pole_height = 100
+        # Dessiner les checkpoints (petits drapeaux verts)
+        if self.checkpoints:
+            for cx, cy in self.checkpoints:
+                cp_x = cx - camera_x
+                if -50 < cp_x < view_w + 50:
+                    pygame.draw.circle(screen, GREEN, (int(cp_x), int(cy)), 15)
+                    pygame.draw.circle(screen, BLACK, (int(cp_x), int(cy)), 15, 2)
         
-        # Mât du drapeau
-        pygame.draw.line(screen, (139, 69, 19),  # Marron
-                         (flag_pole_x, flag_pole_y),
-                         (flag_pole_x, flag_pole_y + flag_pole_height), 5)
-        
-        # Drapeau (carré avec damier)
-        flag_width = 40
-        flag_height = 30
-        flag_rect = pygame.Rect(flag_pole_x + 5, flag_pole_y, flag_width, flag_height)
-        
-        # Fond du drapeau (jaune et rouge en damier)
-        for i in range(2):
-            for j in range(2):
-                cell_rect = pygame.Rect(
-                    flag_rect.x + i * flag_width // 2,
-                    flag_rect.y + j * flag_height // 2,
-                    flag_width // 2,
-                    flag_height // 2
-                )
-                if (i + j) % 2 == 0:
-                    pygame.draw.rect(screen, YELLOW, cell_rect)
-                else:
-                    pygame.draw.rect(screen, RED, cell_rect)
-                pygame.draw.rect(screen, BLACK, cell_rect, 1)
-        
-        # Texte "FIN" ou "GOAL"
-        font = pygame.font.Font(None, 24)
-        text = font.render("GOAL", True, BLACK)
-        text_rect = text.get_rect(center=(flag_rect.centerx, flag_rect.centery))
-        screen.blit(text, text_rect)
+        # Dessiner la zone de fin (drapeau) - PAS pour le niveau boss (manche 5)
+        if self.level_type != "boss":
+            flag_pole_x = self.end_x - camera_x
+            flag_pole_y = SCREEN_HEIGHT - 150
+            flag_pole_height = 100
+            
+            pygame.draw.line(screen, (139, 69, 19),  # Marron
+                             (flag_pole_x, flag_pole_y),
+                             (flag_pole_x, flag_pole_y + flag_pole_height), 5)
+            
+            flag_width = 40
+            flag_height = 30
+            flag_rect = pygame.Rect(flag_pole_x + 5, flag_pole_y, flag_width, flag_height)
+            
+            for i in range(2):
+                for j in range(2):
+                    cell_rect = pygame.Rect(
+                        flag_rect.x + i * flag_width // 2,
+                        flag_rect.y + j * flag_height // 2,
+                        flag_width // 2,
+                        flag_height // 2
+                    )
+                    if (i + j) % 2 == 0:
+                        pygame.draw.rect(screen, YELLOW, cell_rect)
+                    else:
+                        pygame.draw.rect(screen, RED, cell_rect)
+                    pygame.draw.rect(screen, BLACK, cell_rect, 1)
+            
+            font = pygame.font.Font(None, 24)
+            text = font.render("GOAL", True, BLACK)
+            text_rect = text.get_rect(center=(flag_rect.centerx, flag_rect.centery))
+            screen.blit(text, text_rect)
+    
+    def check_boss_timeout(self):
+        """Vérifie si le timer du boss (3min15) est écoulé"""
+        if self.level_type == "boss" and hasattr(self, 'boss_start_time') and self.boss_start_time is not None:
+            elapsed_ms = pygame.time.get_ticks() - self.boss_start_time
+            elapsed_seconds = elapsed_ms / 1000.0
+            # 3min15 = 195 secondes
+            if elapsed_seconds >= 195:
+                return True  # Temps écoulé = défaite
+        return False
     
     def check_level_complete(self, player):
-        """Vérifie si le joueur a atteint la fin du niveau"""
+        """Vérifie si le joueur a gagné"""
         if self.level_type == "boss":
-            # En mode boss, le niveau est terminé si le boss est vaincu
-            return self.boss is None or not self.boss.alive
+            # Manche 5 : victoire si le boss explose (tous les ennemis tués avant 3min15)
+            if not self.boss:
+                return False  # Pas de boss = pas de victoire possible
+            
+            # VICTOIRE : Si le boss explose (tous les ennemis tués avant la fin des phases)
+            if self.boss.exploding:
+                return True  # Le boss explose = victoire
+            
+            # Ne pas considérer la victoire si le boss n'a pas encore commencé à spawner
+            # (phase 1, aucun ennemi spawné)
+            if self.boss.phase == 1 and self.boss.phase_spawned == 0:
+                return False  # Le boss n'a pas encore commencé
+            
+            # Vérifier si toutes les phases sont terminées (phase > 3 signifie que les 3 phases sont complètes)
+            if self.boss.phase > 3:
+                # Toutes les phases terminées : vérifier qu'il n'y a plus d'ennemis
+                alive_enemies = [e for e in self.enemies if e.alive]
+                if len(alive_enemies) == 0:
+                    return True  # Toutes les phases terminées ET tous les ennemis tués = victoire
+            
+            # Le timeout est géré par check_boss_timeout() dans game.py
+            return False  # Pas encore gagné
         else:
-            # En mode parcours, le niveau est terminé quand on atteint la fin
             return player.rect.right >= self.end_x
+    
+    def check_checkpoint(self, player):
+        """Vérifie si le joueur touche un checkpoint et met à jour last_checkpoint"""
+        if not self.checkpoints:
+            return
+        for i, (cx, cy) in enumerate(self.checkpoints):
+            if i in player.checkpoints_reached:
+                continue
+            if (player.rect.centerx >= cx - 40 and player.rect.centerx <= cx + 40 and
+                abs(player.rect.centery - cy) < 80):
+                player.checkpoints_reached.append(i)
+                player.last_checkpoint = (cx, cy)
+                break
 

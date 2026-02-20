@@ -42,6 +42,9 @@ Thumbs.db
 *.tmp
 *.log
 
+# Captures d'écran
+screenshots/
+
 # Fichiers de niveau personnalisés (optionnel - décommenter si nécessaire)
 # level.txt
 

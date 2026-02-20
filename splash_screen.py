@@ -126,11 +126,11 @@ class SplashScreen:
             subtitle_y = title_y + scaled_height + 30
             self.screen.blit(subtitle_alpha_surf, (subtitle_x, subtitle_y))
         
-        # Message "Appuyez pour continuer"
+        # Message "Appuyez pour continuer" (sans les détails clavier - voir Paramètres)
         if self.timer > 2.0:
             blink = int(self.timer * 2) % 2
             if blink:
-                press_text = "Appuyez sur une touche pour continuer..."
+                press_text = "Appuyez pour continuer..."
                 press_surface = self.font_press.render(press_text, True, WHITE)
                 press_x = SCREEN_WIDTH // 2 - press_surface.get_width() // 2
                 press_y = SCREEN_HEIGHT - 100

@@ -96,13 +96,29 @@ class SettingsMenu:
                 status_rect = status_text.get_rect(center=(SCREEN_WIDTH // 2 + 200, y_offset + i * 80))
                 self.screen.blit(status_text, status_rect)
         
-        # Instructions
+        # Section Contrôles / Instructions (déplacée depuis l'écran d'accueil)
+        controls_title = self.font_option.render("Contrôles", True, YELLOW)
+        self.screen.blit(controls_title, (SCREEN_WIDTH // 2 - controls_title.get_width() // 2, 480))
+        
         instructions = [
-            "Flèches ↑↓ : Naviguer | Entrée/Espace : Activer/Désactiver",
-            "ESC : Retour"
+            "Clavier: Flèches ↑↓ : Naviguer | Entrée/Espace : Sélectionner",
+            "Manette PS4: D-Pad ↑↓ : Naviguer | Bouton X : Sélectionner",
+            "En jeu: Flèches ou A/D : Déplacer | Espace : Sauter | ESC : Menu | F11 : Plein écran | F12 : Capture",
+            "",
+            "--- MODE 2 JOUEURS AVEC MANETTES ---",
+            "1. Branchez les 2 manettes AVANT de lancer le jeu",
+            "2. Paramètres > Manette PS4 : Activée",
+            "3. Mode Compétitif > Joueur vs Joueur ou 2 Joueurs vs Bot",
+            "4. Écran sélection : X = J1 | Cercle = J2 | Espace/Entrée = clavier",
+            "J1: Stick + Bouton X | J2: Stick + Bouton X (ou clavier J/L+I)"
         ]
-        y_inst = SCREEN_HEIGHT - 100
+        y_inst = 520
         for i, inst in enumerate(instructions):
-            text = self.font_small.render(inst, True, GRAY)
-            self.screen.blit(text, (50, y_inst + i * 30))
+            color = YELLOW if "---" in inst else GRAY
+            text = self.font_small.render(inst, True, color)
+            self.screen.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, y_inst + i * 26))
+        
+        # Instructions du menu paramètres
+        hint = self.font_small.render("ESC : Retour", True, GRAY)
+        self.screen.blit(hint, (SCREEN_WIDTH // 2 - hint.get_width() // 2, SCREEN_HEIGHT - 50))
 

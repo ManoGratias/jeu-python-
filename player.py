@@ -5,18 +5,74 @@ import pygame
 from config import *
 
 class Player:
-    def __init__(self, x, y):
+    def __init__(self, x, y, player_id=1):
         self.rect = pygame.Rect(x, y, PLAYER_WIDTH, PLAYER_HEIGHT)
         self.velocity_x = 0
         self.velocity_y = 0
         self.on_ground = False
         self.lives = 5  # 5 vies au lieu de 3
-        self.color = LIGHT_BLUE  # Couleur par défaut du joueur
-        self.jump_count = 0  # Compteur pour le double saut
-        self.max_jumps = 2  # Nombre maximum de sauts (double saut)
+        self.player_id = player_id
+        self.color = LIGHT_BLUE if player_id == 1 else GREEN  # Joueur 2 = vert
+        self.jump_count = 0
+        self.max_jumps = 2
+        self.last_checkpoint = (x, y)  # Point de respawn
+        self.checkpoints_reached = []   # Indices des checkpoints franchis
+        self.stars_collected = 0        # Étoiles collectées (tous les 5 = +vitesse)
+        self.jump_bonus_timer = 0      # Timer pour le bonus de saut (15 secondes = 900 frames)
+        self.ground_shield_timer = 0   # Timer pour le bouclier rouge (tuer ennemis au sol) - 3 secondes = 180 frames
+        self.flying_shield_timer = 0   # Timer pour le bouclier bleu (tuer ennemis volants) - 3 secondes = 180 frames
+        self.boss_level_speed_boost = False  # Boost de vitesse en manche 5
+        self.bubbles_timer = 0  # Timer pour l'effet de bulles (3 secondes = 180 frames)
+        self.bubbles = []  # Liste des bulles pour l'effet visuel
+        
+    def get_speed(self):
+        """Vitesse actuelle : +2 tous les 5 étoiles, +50% en manche 5"""
+        base_speed = PLAYER_SPEED + (self.stars_collected // 5) * 2
+        if self.boss_level_speed_boost:
+            return int(base_speed * 1.5)  # +50% de vitesse en manche 5
+        return base_speed
         
     def update(self, platforms):
         """Met à jour la position du joueur avec la physique améliorée"""
+        # Mettre à jour les timers
+        if self.jump_bonus_timer > 0:
+            self.jump_bonus_timer -= 1
+        if self.ground_shield_timer > 0:
+            self.ground_shield_timer -= 1
+        if self.flying_shield_timer > 0:
+            self.flying_shield_timer -= 1
+        # Effet de bulles pendant 3 secondes maximum
+        if self.bubbles_timer > 0:
+            self.bubbles_timer -= 1
+            # Mettre à jour les bulles existantes
+            import random
+            import math
+            for bubble in self.bubbles[:]:
+                bubble['x'] += bubble['vx']
+                bubble['y'] += bubble['vy']
+                bubble['vy'] -= 0.3  # Les bulles montent
+                bubble['life'] -= 1
+                bubble['size'] += 0.2  # Les bulles grossissent
+                if bubble['life'] <= 0:
+                    self.bubbles.remove(bubble)
+            # Ajouter de nouvelles bulles seulement au début (premières frames)
+            if self.bubbles_timer > 150:  # Seulement pendant les premières 0.5 secondes
+                if len(self.bubbles) < 8 and random.random() < 0.3:  # Moins de bulles
+                    angle = random.uniform(0, 2 * math.pi)
+                    speed = random.uniform(1, 2)
+                    self.bubbles.append({
+                        'x': self.rect.centerx + random.randint(-20, 20),
+                        'y': self.rect.centery + random.randint(-20, 20),
+                        'vx': math.cos(angle) * speed,
+                        'vy': -random.uniform(2, 4),
+                        'size': random.randint(5, 12),
+                        'life': random.randint(30, 60),
+                        'alpha': random.randint(150, 255)
+                    })
+            # Quand le timer arrive à 0, nettoyer toutes les bulles
+            if self.bubbles_timer == 0:
+                self.bubbles = []
+        
         # Appliquer la gravité
         self.velocity_y += GRAVITY
         
@@ -88,23 +144,28 @@ class Player:
         # Si le joueur tombe en bas de l'écran, perte de vie
         if self.rect.top > SCREEN_HEIGHT:
             self.lives -= 1
-            self.reset_position()
+            self.reset_to_checkpoint()
     
-    def reset_position(self):
+    def reset_to_checkpoint(self):
+        """Réinitialise au dernier checkpoint"""
+        x, y = self.last_checkpoint
+        self.reset_position(x, y)
+    
+    def reset_position(self, x=50, y=100):
         """Réinitialise la position du joueur"""
-        self.rect.x = 50
-        self.rect.y = 100
+        self.rect.x = x
+        self.rect.y = y
         self.velocity_x = 0
         self.velocity_y = 0
         self.jump_count = 0
     
     def move_left(self):
         """Déplace le joueur vers la gauche"""
-        self.velocity_x = -PLAYER_SPEED
+        self.velocity_x = -self.get_speed()
     
     def move_right(self):
         """Déplace le joueur vers la droite"""
-        self.velocity_x = PLAYER_SPEED
+        self.velocity_x = self.get_speed()
     
     def jump(self):
         """Fait sauter le joueur (double saut autorisé)"""
@@ -174,6 +235,54 @@ class Player:
         pygame.draw.circle(screen, self.color, (x + w // 2 + 4, leg_y), 3)
         pygame.draw.circle(screen, BLACK, (x + w // 2 - 4, leg_y), 3, 1)
         pygame.draw.circle(screen, BLACK, (x + w // 2 + 4, leg_y), 3, 1)
+        
+        # Effet visuel du bonus de saut (halo cyan pulsant)
+        if self.jump_bonus_timer > 0:
+            import math
+            pulse = 1 + 0.3 * math.sin(self.jump_bonus_timer * 0.2)
+            halo_radius = int(body_radius * pulse + 8)
+            # Halo cyan semi-transparent
+            halo_surf = pygame.Surface((halo_radius * 2, halo_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(halo_surf, (0, 255, 255, 100), (halo_radius, halo_radius), halo_radius)
+            screen.blit(halo_surf, (body_center[0] - halo_radius, body_center[1] - halo_radius))
+            # Bordure cyan
+            pygame.draw.circle(screen, CYAN, body_center, halo_radius, 2)
+        
+        # Effet visuel des boucliers (halo rouge ou bleu)
+        if self.ground_shield_timer > 0:
+            import math
+            pulse = 1 + 0.2 * math.sin(self.ground_shield_timer * 0.15)
+            shield_radius = int(body_radius * pulse + 10)
+            # Halo rouge semi-transparent
+            shield_surf = pygame.Surface((shield_radius * 2, shield_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(shield_surf, (255, 100, 100, 120), (shield_radius, shield_radius), shield_radius)
+            screen.blit(shield_surf, (body_center[0] - shield_radius, body_center[1] - shield_radius))
+            # Bordure rouge
+            pygame.draw.circle(screen, RED, body_center, shield_radius, 2)
+        
+        if self.flying_shield_timer > 0:
+            import math
+            pulse = 1 + 0.2 * math.sin(self.flying_shield_timer * 0.15)
+            shield_radius = int(body_radius * pulse + 10)
+            # Halo bleu semi-transparent
+            shield_surf = pygame.Surface((shield_radius * 2, shield_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(shield_surf, (100, 150, 255, 120), (shield_radius, shield_radius), shield_radius)
+            screen.blit(shield_surf, (body_center[0] - shield_radius, body_center[1] - shield_radius))
+            # Bordure bleue
+            pygame.draw.circle(screen, BLUE, body_center, shield_radius, 2)
+        
+        # Effet de bulles pendant 3 secondes maximum
+        if self.bubbles_timer > 0:
+            import math
+            for bubble in self.bubbles:
+                alpha = min(255, int(255 * bubble['life'] / 60))
+                bubble_surf = pygame.Surface((int(bubble['size'] * 2), int(bubble['size'] * 2)), pygame.SRCALPHA)
+                pygame.draw.circle(bubble_surf, (200, 230, 255, alpha), 
+                                 (int(bubble['size']), int(bubble['size'])), int(bubble['size']))
+                screen.blit(bubble_surf, (int(bubble['x'] - bubble['size']), int(bubble['y'] - bubble['size'])))
+                # Bordure blanche
+                pygame.draw.circle(screen, (255, 255, 255, alpha), 
+                                  (int(bubble['x']), int(bubble['y'])), int(bubble['size']), 1)
         
         # Indicateur de double saut (petite flèche verte)
         if self.jump_count < self.max_jumps:

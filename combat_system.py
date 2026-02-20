@@ -64,31 +64,45 @@ class CombatSystem:
             self.player2_max_health = 120
             self.player2_health = 120
             
-    def update(self, keys, player2_keys=None):
-        """Met à jour le combat"""
+    def attack_player1(self):
+        """Appelé quand le joueur 1 appuie sur ESPACE ou X (manette)"""
+        if not self.combat_active:
+            return
+        if not self.player1_attacking:
+            self.player1_attacking = True
+            self.attack_timer = 0
+            self._player1_attack()
+    
+    def attack_player2(self):
+        """Appelé quand le joueur 2 appuie sur ENTRÉE ou X (manette)"""
+        if not self.combat_active:
+            return
+        if not self.player2_attacking:
+            self.player2_attacking = True
+            self.attack_timer = 0
+            self._player2_attack()
+    
+    def update(self, keys, player2_keys=None, player1_attack=False, player2_attack=False):
+        """Met à jour le combat. player1_attack/player2_attack = manette (bouton X) - DÉPRÉCIÉ, utiliser attack_player1/2"""
         if not self.combat_active:
             return
         
         self.combat_timer += 1/60  # Incrémenter le timer (60 FPS)
         
-        # Gérer les attaques du joueur 1
-        if keys[pygame.K_SPACE] and not self.player1_attacking:
-            self.player1_attacking = True
-            self.attack_timer = 0
-            self._player1_attack()
+        # Gérer les attaques du joueur 1 (clavier Espace - pour compatibilité)
+        if keys and keys[pygame.K_SPACE] and not self.player1_attacking:
+            self.attack_player1()
         
-        # Gérer les attaques du joueur 2 (si présent)
-        if self.match_manager.game_mode in ["2v1", "pvp"] and player2_keys:
-            if player2_keys[pygame.K_RETURN] and not self.player2_attacking:
-                self.player2_attacking = True
-                self.attack_timer = 0
-                self._player2_attack()
+        # Gérer les attaques du joueur 2 (clavier Entrée - pour compatibilité)
+        if self.match_manager.game_mode in ["2v1", "pvp"]:
+            if player2_keys and player2_keys[pygame.K_RETURN] and not self.player2_attacking:
+                self.attack_player2()
         
         # Gérer l'IA du bot
         if self.match_manager.game_mode in ["1v1", "2v1"]:
             self._bot_ai()
         
-        # Réinitialiser les attaques après un délai
+        # Réinitialiser les attaques après un délai (0.5 secondes entre chaque attaque)
         if self.attack_timer > 0.5:  # 0.5 secondes
             self.player1_attacking = False
             self.player2_attacking = False
@@ -115,7 +129,7 @@ class CombatSystem:
                     else:
                         winner = "bot"
             
-            self.match_manager.complete_combat(winner)
+            # Ne pas appeler complete_combat ici - c'est géré par _handle_minigame_winner dans game.py
             return winner
         
         return None
@@ -200,10 +214,12 @@ class CombatSystem:
         overlay.fill(BLACK)
         screen.blit(overlay, (0, 0))
         
-        # Titre
-        font_large = pygame.font.Font(None, 48)
-        title = font_large.render("⚔️ COMBAT ⚔️", True, RED)
-        screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 50))
+        # Titre - Mini-jeu combat pour déterminer le gagnant
+        font_large = pygame.font.Font(None, 52)
+        title = font_large.render("🎮 MINI-JEU COMBAT 🎮", True, ORANGE)
+        screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 40))
+        subtitle = pygame.font.Font(None, 24).render("Qui gagne la manche?", True, YELLOW)
+        screen.blit(subtitle, (SCREEN_WIDTH // 2 - subtitle.get_width() // 2, 75))
         
         # Timer
         font = pygame.font.Font(None, 36)
@@ -228,24 +244,41 @@ class CombatSystem:
             self._draw_health_bar(screen, SCREEN_WIDTH - 400, bar_y, bar_width, bar_height,
                                  self.bot_health, self.bot_max_health, "Bot", RED)
         
-        # Instructions
-        font_small = pygame.font.Font(None, 24)
+        # Instructions claires - COMMENT JOUER
+        font_small = pygame.font.Font(None, 26)
+        font_tiny = pygame.font.Font(None, 22)
+        
+        how_to_title = font_small.render("COMMENT JOUER :", True, YELLOW)
+        screen.blit(how_to_title, (SCREEN_WIDTH // 2 - how_to_title.get_width() // 2, 260))
+        
         if self.match_manager.game_mode == "pvp":
             instructions = [
-                "Joueur 1: ESPACE pour attaquer",
-                "Joueur 2: ENTRÉE pour attaquer"
+                "Joueur 1 : ESPACE ou X (manette) = ATTAQUER",
+                "Joueur 2 : ENTRÉE ou X (manette) = ATTAQUER",
+                "",
+                "💡 APPUYEZ BRIÈVEMENT (tap) sur X ou ESPACE",
+                "   Attendez 0.5 seconde puis réappuyez pour enchaîner!",
+                "",
+                "Le premier à 0 PV perd. Temps limité : 30 secondes."
             ]
         else:
             instructions = [
-                "ESPACE pour attaquer",
-                "Utilisez vos items stratégiquement!"
+                "ESPACE ou X (manette) = ATTAQUER le Bot",
+                "",
+                "💡 APPUYEZ BRIÈVEMENT (tap) sur X ou ESPACE",
+                "   Attendez 0.5 seconde puis réappuyez pour enchaîner!",
+                "   Chaque attaque = 20 dégâts",
+                "",
+                "Le premier à 0 PV perd. Temps limité : 30 secondes."
             ]
         
-        y_offset = 300
+        y_offset = 295
         for instruction in instructions:
-            text = font_small.render(instruction, True, WHITE)
-            screen.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, y_offset))
-            y_offset += 30
+            if instruction:  # Ignorer les lignes vides
+                color = CYAN if "💡" in instruction else WHITE
+                text = font_tiny.render(instruction, True, color)
+                screen.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, y_offset))
+            y_offset += 25
         
         # Indicateurs d'attaque
         if self.player1_attacking:
